@@ -1,0 +1,99 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: sqs-aws-resource
+  title: AWS SQS - Atlantis
+  description: Create a simple microservice using gRPC and Spring Boot Java
+  tags:
+    - infrastructure
+    - terraform
+    - aws
+    - atlantis
+spec:
+  owner: service@example.com
+  type: service
+
+  parameters:
+    - title: Provide some simple information
+      required:
+        - component_owner_id
+        - owner
+        - queue_name
+      properties:
+        component_owner_id:
+          title: Name
+          type: string
+          description: Unique name of the component
+          ui:field: EntityNamePicker
+        queue_name:
+          title: Queue Name
+          type: string
+          description: Name for the Queue. eg (PaymentConfirmed)
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the component
+          ui:field: OwnerPicker
+          ui:options:
+            allowedKinds:
+              - Group
+
+  steps:
+    - id: template
+      name: Fetch Module + Render Template
+      action: fetch:template
+      input:
+        targetPath: ./templates/outputs/${{ parameters.queue_name }}
+        url: ../templates/terraform-modules/queue-module-template-cookie/
+        values:
+          queue_name: ${{ parameters.queue_name }}
+          component_owner_id: ${{ parameters.component_owner_id }}
+          owner: ${{ parameters.owner }}
+    
+    - id: debug
+      name: debugging
+      action: debug:log
+      input:
+        message: "Confia"
+        listWorkspace: true
+
+    - id: pull_request
+      name: Create SQS Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=gabriel-dantas98&repo=heroku-backstage
+        branchName: "create-sqs-${{ parameters.queue_name }}"
+        title: Creating SQS ${{ parameters.queue_name }} by Backstage
+        description: Meu PR bolado mo daora, confia que nois é brabo
+        sourcePath: ./templates/outputs/${{ parameters.queue_name }}
+        targetPath: apps/${{ parameters.component_owner_id }}/sqs/${{ parameters.queue_name }}
+    # - id: publish
+    #   name: Publish
+    #   action: publish:github
+    #   input:
+    #     allowedHosts: ["github.com"]
+    #     description: This is ${{ parameters.component_id }}
+    #     repoUrl: ${{ parameters.repoUrl }}
+
+    # - id: register
+    #   name: Register
+    #   action: catalog:register
+    #   input:
+    #     repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+    #     catalogInfoPath: "/catalog-info.yaml"
+    
+    - id: debug
+      name: debugging
+      action: debug:log
+      input:
+        message: | 
+          "remote_url testing ${{ steps.pull_request.output.remoteUrl }}
+           remote_url testing ${{ steps.pull_request.output | dump }}
+          "
+        listWorkspace: true
+
+  output:
+    links:
+    - url: ${{ steps.pull_request.output.remoteUrl }}
+      text: "Go to PR"
+    remoteUrl: ${{ steps.pull_request.output.remoteUrl }}
